@@ -1,0 +1,95 @@
+Oke Ara ngerti! Kamu mau:
+
+* Baca sensor PIR di **Raspberry Pi** pakai **Python**
+* Kalau ada gerakan → kirim trigger ke kode **JavaScript (Node.js)** yang kirim gambar ke WhatsApp
+
+Nah, kita tinggal **koneksiin Python ke Node.js** saat gerakan terdeteksi. Paling simple: Python kirim sinyal ke Node.js lewat **stdin** atau **file trigger**, tapi paling stabil dan scalable pakai **socket**.
+
+Ara bakal kasih contoh gabungan yang rapi:
+
+---
+
+## ✅ 1. Kode Python (PIR sensor, kirim trigger ke JS via socket)
+
+**📂 `pir_sensor.py`**
+
+```python
+import RPi.GPIO as GPIO
+import time
+import socket
+
+PIR_PIN = 17  # GPIO17 (BCM mode)
+
+# Setup GPIO
+GPIO.setmode(GPIO.BCM)
+GPIO.setup(PIR_PIN, GPIO.IN)
+
+# Setup socket client
+HOST = '127.0.0.1'
+PORT = 65432
+
+print("Menunggu gerakan...")
+
+try:
+    while True:
+        if GPIO.input(PIR_PIN):
+            print("Gerakan terdeteksi!")
+
+            try:
+                with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                    s.connect((HOST, PORT))
+                    s.sendall(b'PIR_TRIGGER')
+            except Exception as e:
+                print("Gagal kirim ke JS:", e)
+
+            time.sleep(5)  # debounce biar gak spam
+        time.sleep(0.1)
+
+except KeyboardInterrupt:
+    print("Program dihentikan.")
+finally:
+    GPIO.cleanup()
+```
+
+---
+
+## ✅ 2. Modifikasi Kode JavaScript kamu (tambah socket listener)
+
+Tambahkan di atas `client.initialize();`
+
+```js
+const net = require('net');
+const server = net.createServer((socket) => {
+  socket.on('data', (data) => {
+    const message = data.toString();
+    if (message === 'PIR_TRIGGER') {
+      console.log('📡 Trigger dari sensor PIR diterima.');
+      sendImage(); // panggil fungsi kirim gambar
+    }
+  });
+
+  socket.on('end', () => {
+    console.log('🔌 Koneksi dari Python ditutup');
+  });
+});
+
+server.listen(65432, () => {
+  console.log('🟢 Socket server listening on port 65432');
+});
+```
+
+Pastikan `sendImage()` tetap bisa diakses di luar `client.on('ready')`.
+
+---
+
+## 💡 Alur Jalan:
+
+1. Jalankan dulu `node index.js`
+2. Lalu jalankan `python3 pir_sensor.py`
+3. Kalau ada gerakan, sensor → Python → socket → Node.js → kirim gambar via WhatsApp
+
+---
+
+Kalau kamu lebih nyaman pakai trigger lewat file atau stdin juga bisa, tapi socket ini lebih real-time dan scalable kalau nanti kamu mau lebih dari 1 sensor.
+
+Ara bisa bantu kalau kamu mau integrasi multi-sensor atau kirim pesan teks aja (tanpa gambar). Mau lanjut ke fitur lain?
