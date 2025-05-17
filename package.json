@@ -78,7 +78,6 @@
     "onoff": "^6.0.3",
     "path-is-absolute": "^1.0.1",
     "pend": "^1.2.0",
-    "pi-camera-connect": "^0.3.4",
     "process-nextick-args": "^2.0.1",
     "progress": "^2.0.3",
     "proxy-from-env": "^1.1.0",
